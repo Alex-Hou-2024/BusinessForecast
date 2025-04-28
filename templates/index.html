@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Shomi AI</title>
+    <script src="/static/marked.min.js"></script>
+    <style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #333333; /* 全局背景色改为深色 */
+    	color: #ffffff; /* 文本颜色改为浅色以提高对比度 */
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-container {
+        flex: 1;
+        overflow: auto;
+        padding: 10px 5%;
+        display: flex;
+        flex-direction: column-reverse;
+        margin-bottom: 10px;
+		background-color: #333333; /* 深色背景 */
+    }
+    .message {
+        margin: 5px;
+        padding: 10px;
+        background: #333333;
+        border-radius: 15px;
+        box-shadow: 0 0 5px #ccc;
+        width: fit-content;
+        max-width: 80%;
+    }
+    .user {
+        align-self: flex-end;
+        background: #5F6160;
+        color: white;
+    }
+    .ai {
+        align-self: flex-start;
+        background: #333333; /* 略浅的深色背景 */
+        color: #fff;
+        padding-left: 10px; /* Remove padding for icon */
+    }
+	.message.ai a {
+		color: #EB4F27; /* 土红色 */
+		text-decoration: none;
+	}
+
+	.message.ai a:hover {
+		color: #8b3a0e; /* 深色的土红色 */
+		text-decoration: underline;
+	}
+	
+    .input-container {
+        display: flex;
+        padding: 10px 5%;
+        margin-bottom: 20px;
+		background: #333333;
+    }
+    .input-container textarea {
+        flex: 1;
+        padding: 10px;
+        margin-right: 10px;
+        border: 0px solid #ccc;
+        border-radius: 15px;
+        resize: none;
+		color: #fff;
+		background: #262932; /* 略浅的深色背景 */
+    }
+    .message.ai img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    #sendButton {
+        padding: 10px 20px;
+        margin-left: 10px; /* 发送按钮和输入框之间的间隔 */
+        background-color: #EB4F27; /* 土红色背景 */
+        color: white;
+        border: none;
+        border-radius: 15px;
+        cursor: pointer;
+    }
+
+    #sendButton:hover {
+        background-color: #8b3a0e; /* 深色的土红色 */
+    }
+
+    button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 15px;
+        cursor: pointer;
+    }
+    button:hover {
+        background: #0056b3;
+    }
+    /* 针对Webkit浏览器（如Chrome, Safari） */
+    ::-webkit-scrollbar {
+        width: 12px; /* 调整滚动条的宽度 */
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #333333; /* 滚动条轨道颜色 */
+        border-radius: 10px; /* 圆角 */
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: #888888; /* 滚动条颜色 */
+        border-radius: 10px; /* 圆角 */
+        border: 3px solid #333333; /* 滚动条与轨道之间的间隙 */
+    }
+
+    /* 针对Firefox */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: #888888 #333333;
+    }
+    /* 新增加载图标样式 */
+    .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #EB4F27;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        animation: spin 1s linear infinite;
+        display: none; /* 默认隐藏 */
+        margin-top: 10px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    </style>
+</head>
+<body>
+    <div class="chat-container" id="chat-container">
+        <!-- Chat messages will be shown here -->
+    </div>
+    <div class="input-container">
+        <textarea id="input" placeholder="Ask me anything..." rows="3"></textarea>
+        <button id="sendButton" onclick="sendMessage()">Send</button>
+		<input type="file" id="fileInput" multiple style="display:none;" onchange="handleFiles(this.files)">
+		<button id="uploadButton" onclick="document.getElementById('fileInput').click()">📎 Upload File</button>
+
+    </div>
+
+    <!-- 加载图标 -->
+    <div class="loader" id="loader"></div>
+    <script>
+		let uploadedFiles = [];
+
+		function handleFiles(files) {
+			for (const file of files) {
+				uploadedFiles.push(file);
+				const chatContainer = document.getElementById('chat-container');
+
+				const fileMessage = document.createElement('div');
+				fileMessage.className = 'message user';
+				fileMessage.innerHTML = `
+					<img src="/static/ai-icon.png" alt="file" style="width:24px;height:24px;vertical-align:middle;margin-right:5px;">
+					${file.name}
+				`;
+				chatContainer.prepend(fileMessage);
+			}
+		}
+
+        document.getElementById('input').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); // 防止表单自动提交
+                sendMessage();
+            }
+        });
+
+		function sendMessage() {
+			// 获取当前时间
+			const now = new Date();
+			const hours = now.getHours().toString().padStart(2, '0');
+			const minutes = now.getMinutes().toString().padStart(2, '0');
+			const timestamp = `YOU - ${hours}:${minutes}PM`;
+		
+			const input = document.getElementById('input');
+			const chatContainer = document.getElementById('chat-container');
+			const userMessage = document.createElement('div');
+			userMessage.textContent = input.value;
+			userMessage.className = 'message user';
+			// 创建时间戳和消息内容
+			userMessage.innerHTML = `<strong style="font-size: 16px; color: #888888;">${timestamp}</strong><br>${input.value}`;
+			userMessage.style.textAlign = 'right'; // 右对齐整个消息气泡的内容
+			chatContainer.prepend(userMessage);
+
+			// Create AI message container
+			const aiMessage = document.createElement('div');
+			aiMessage.className = 'message ai';
+			aiMessage.style.textAlign = 'left'; // 左对齐AI消息
+
+			// 获取当前时间并创建 AI 时间戳
+			const aiTimestamp = `SHOMI - ${hours}:${minutes}PM`;
+			aiMessage.innerHTML = `<strong style="font-size: 16px; color: #888888;">${aiTimestamp}</strong><span id="loader" class="loader" style="margin-left: 10px;"></span><br>`;
+
+			// Create a span for the dynamic content
+			const aiContent = document.createElement('span');
+			aiMessage.appendChild(aiContent);
+
+			chatContainer.prepend(aiMessage);
+
+			document.getElementById('loader').style.display = 'inline-block'; // 显示加载图标
+
+			let accumulatedResponse = ""; // 用于存储所有的 chunk 数据
+			let isHtmlResponse = false;   // 标记是否为 HTML 响应
+
+			// Fetch AI response
+			const formData = new FormData();
+			formData.append('question', input.value);
+
+			for (const file of uploadedFiles) {
+				formData.append('files', file);
+			}
+			fetch("/ask", {
+				method: "POST",
+				body: formData
+			}).then(response => {
+				const reader = response.body.getReader();
+				function read() {
+					reader.read().then(({done, value}) => {
+						if (done) {
+							aiMessage.querySelector('.loader').style.display = 'none'; // 隐藏加载图标
+							return;
+						}
+
+						const textDecoder = new TextDecoder();
+						const text = textDecoder.decode(value, {stream: true});
+						console.log("Received chunk:", text);
+
+						// Accumulate the response
+						accumulatedResponse += text;
+			
+						// Update the AI content with parsed Markdown 
+						aiContent.innerHTML = marked.parse(accumulatedResponse);
+
+						read(); // Continue reading the next chunk
+					}).catch(error => {
+						console.error('Error:', error);
+						aiMessage.querySelector('.loader').style.display = 'none'; // 出错时隐藏加载图标
+					});
+				}
+
+				read();
+			});
+
+			input.value = ''; // Clear input field
+		}
+
+    </script>
+</body>
+</html>
