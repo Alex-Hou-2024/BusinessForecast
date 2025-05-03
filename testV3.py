@@ -2,7 +2,7 @@ import os, json, time, uuid
 from openai import OpenAI
 
 from flask import Flask, request, jsonify, render_template, make_response, Response, send_from_directory
-from agentTools import agentTools
+from agentTools import agentTools, registry
 import urllib.parse  # ✅ 用于解码 URL 编码的中文文件名
 from urllib.parse import quote
 from colorama import Fore
@@ -113,16 +113,6 @@ def ask():
                                 "content": f"图片已生成：\n\n<img src='/download/{file_name}.png' style='width:400px;'>\n\n"
                             })
 
-                        elif part.type == "image_url":
-                            print(part.image_url)
-                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
-                        elif part.type == "file":
-                            print(part.file)
-                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
-                        elif part.type == "files":
-                            print(part.files)
-                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
-
             elif event.event == "thread.message.completed":
                 content = event.data.content
                 if content:
@@ -165,7 +155,7 @@ def ask():
                             outputs = tool_call.code_interpreter.outputs
                             if outputs:
                                 for output in outputs:
-                                    print("tool_call.code_interpreter.output.type:" + output.type)
+                                    print("tool_call.code_interpreter.output.type: " + output.type)
 
             elif event.event == "thread.run.step.completed":
                 print("event.data.step_details.type:" + event.data.step_details.type)
@@ -181,18 +171,16 @@ def ask():
 
                 for tool_call in tool_calls:
                     arguments = json.loads(tool_call.function.arguments)
-                    #if tool_call.function.name == "example_blog_post_function_1":
-                        #result = my_example_funtion()
-                        #tool_outputs.append({
-                        #    "tool_call_id": tool_call.id,
-                        #    "output": "上升"
-                        #})
-                    #elif tool_call.function.name == "example_blog_post_function_2":
-                        #result = my_example_funtion()
-                        #tool_outputs.append({
-                        #    "tool_call_id": tool_call.id,
-                        #    "output": "下降"
-                        #})
+
+                    if tool_call.function.name not in registry:
+                        print('No suitable action found. Please confirm that your input is valid. \n')
+                        raise ValueError(f"函数 {tool_call.function.name} 不存在")
+                    else:
+                        result = registry[tool_call.function.name](arguments)
+                        tool_outputs.append({
+                            "tool_call_id": tool_call.id,
+                            "output": result
+                        })
 
                 # 提交输出后，继续打开新的 follow_stream
                 with client.beta.threads.runs.submit_tool_outputs_stream(
