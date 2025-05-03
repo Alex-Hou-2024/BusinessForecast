@@ -3,15 +3,17 @@ from openai import OpenAI
 
 from flask import Flask, request, jsonify, render_template, make_response, Response, send_from_directory
 from agentTools import agentTools
-
+import urllib.parse  # ✅ 用于解码 URL 编码的中文文件名
+from urllib.parse import quote
+from colorama import Fore
 
 client = OpenAI()
 
 # Step 1: 创建 Assistant（只需要创建一次）
 assistant = client.beta.assistants.create(
     name="Data analyst",
-    description="You are an economic data analyst, analyzing various uploaded files and then answering the questions submitted by users",
-    instructions="You are an economic data analyst, analyzing various uploaded files and then answering the questions submitted by users",
+    description="You are AI Assistant of Signal, analyzing various uploaded files and then answering the questions submitted by users",
+    instructions="You are AI Assistant of Signal, analyzing various uploaded files and then answering the questions submitted by users",
     model="gpt-4.1-mini",
     tools=agentTools,
     response_format={"type": "text"}  # 文本格式输出
@@ -25,6 +27,7 @@ session_run_mapping = {}
 self_run_id = ""  # 需要补上run_id，如果能在最开始拿到
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+
 
 @app.route("/")
 @app.route("/AI")
@@ -95,8 +98,49 @@ def ask():
                 if delta.content:
                     for part in delta.content:
                         if part.type == "text":
-                            #print(part.text.value)
+                            print(part.text.value)
                             yield json.dumps({"type": "text", "content": part.text.value}) + "\n"
+                        elif part.type == "image_file":
+                            print(part.image_file)
+                            image_file = client.files.content(part.image_file.file_id)
+                            file_name=part.image_file.file_id
+
+                            with open(f"download/{file_name}.png", "wb") as f:
+                                f.write(image_file.content)
+
+                            yield json.dumps({
+                                "type": "text",
+                                "content": f"图片已生成：\n\n<img src='/download/{file_name}.png' style='width:400px;'>\n\n"
+                            })
+
+                        elif part.type == "image_url":
+                            print(part.image_url)
+                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
+                        elif part.type == "file":
+                            print(part.file)
+                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
+                        elif part.type == "files":
+                            print(part.files)
+                            #yield json.dumps({"type": "text", "content": part.image_url.url}) + "\n"
+
+            elif event.event == "thread.message.completed":
+                content = event.data.content
+                if content:
+                    for part in content:
+                        if part.type == "text":
+                            print(part.text.value)
+                            for annotation in part.text.annotations:
+                                if annotation.type == "file_path":
+                                    file_name = os.path.basename(annotation.text)
+                                    file_content = client.files.content(annotation.file_path.file_id)
+
+                                    with open(f"download/{file_name}", "wb") as f:
+                                        f.write(file_content.read())  # ✅ 读取流中的字节内容
+
+                                    yield json.dumps({
+                                        "type": "text",
+                                        "content": f"文件已生成：\n\n[点击下载 {file_name}](/download/{urllib.parse.quote(file_name)})\n\n"
+                                    })
 
             elif event.event == "thread.run.step.created":
                 if event.data.step_details.type == "tool_calls":
@@ -121,12 +165,10 @@ def ask():
                             outputs = tool_call.code_interpreter.outputs
                             if outputs:
                                 for output in outputs:
-                                    if output.type == "logs":
-                                        #yield output.logs
-                                        #print(output.logs)
-                                        yield json.dumps({"type": "code_content", "content": output.logs}) + "\n"
+                                    print("tool_call.code_interpreter.output.type:" + output.type)
 
             elif event.event == "thread.run.step.completed":
+                print("event.data.step_details.type:" + event.data.step_details.type)
                 if event.data.step_details.type == "tool_calls":
                     #yield f"\n\n```\n\n"
                     #print({"type": "code_end"})
@@ -165,7 +207,7 @@ def ask():
         with client.beta.threads.runs.stream(
                 thread_id=thread.id,
                 assistant_id=assistant.id,
-                instructions="Your name is Sasha and the client's name is Big Smart"
+                instructions="Your name is Signal AI Assistent, you have Google Trends, you can generate related python code to get the sales data."
         ) as stream:
             yield from process_stream(stream)
 
@@ -212,6 +254,11 @@ def stop():
                 return {'status': 'error', 'message': error_message}, 500
     else:
         return {'status': 'no active run'}
+
+@app.route("/download/<path:filename>")
+def download_file(filename):
+    safe_filename = urllib.parse.unquote(filename)
+    return send_from_directory("download", safe_filename, as_attachment=False)
 
 
 if __name__ == "__main__":
