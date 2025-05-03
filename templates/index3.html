@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat with Shomi AI</title>
+  <title>思诺AI助手</title>
   <script src="/static/marked.min.js"></script>
   <link rel="stylesheet" href="/static/default.min.css">
   <script src="/static/highlight.min.js"></script>
@@ -434,7 +434,7 @@ if (isRunning) {
   aiMessage.className = 'message ai';
   aiMessage.innerHTML = `
   <div style="display: flex; align-items: center; gap: 8px;">
-    <img src="/static/galaxa ai.png" alt="AI" style="width:24px;height:24px;border-radius:50%;">
+    <img src="/static/signal.png" alt="AI" style="width:24px;height:24px;border-radius:50%;">
     <strong style="font-size: 16px; color: #888;">${hours}:${minutes}PM</strong>
     <span id="loader" class="loader" style="margin-left: 4px;"></span>
   </div>
@@ -471,10 +471,11 @@ for (const file_id of uploadedFileIds) {
           scrollToBottom();
           return;
         }
-        const line = new TextDecoder().decode(value, { stream: true }).trim();
-        if (line) {
-          try {
-            const event = JSON.parse(line);
+        const lines = new TextDecoder().decode(value, { stream: true }).split('\n');
+		for (const line of lines) {
+		  if (!line.trim()) continue;
+		  try {
+			const event = JSON.parse(line.trim());
 
             if (!aiContent.dataset.mode) {
               aiContent.dataset.mode = 'none';
