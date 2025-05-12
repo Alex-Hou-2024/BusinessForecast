@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>galaxa ai</title>
+  <script src="/static/marked.min.js"></script>
+  <script>
+	  marked.setOptions({
+		renderer: (() => {
+		  const renderer = new marked.Renderer();
+		  const originalImage = renderer.image;
+		  renderer.image = function(href, title, text) {
+			const html = originalImage.call(this, href, title, text);
+			return html.replace('<img ', '<img style="max-width:200px; max-height:100px;" ');
+		  };
+		  return renderer;
+		})()
+	  });
+	</script>
+  <link rel="stylesheet" href="/static/default.min.css">
+  <script src="/static/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+.chat-container {
+  min-width: 300px;
+  width: 100%;
+  max-width: 880px;
+  flex: 1;
+  background: #111;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column-reverse;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+    .message {
+      margin: 10px 0;
+      padding: 12px 16px;
+      background: #111;
+      border-radius: 18px;
+      max-width: 100%;
+      word-wrap: break-word;
+      box-shadow: none;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #222;
+    }
+
+    .ai {
+      align-self: flex-start;
+      background: #111;
+    }
+
+.input-container {
+  width: 100%;
+  background: #111;
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.input-wrapper {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.input-container textarea {
+  width: 100%;
+  max-width: 800px;
+  min-width: 300px;
+  padding: 12px;
+  border-radius: 18px;
+  border: none;
+  background: #222;
+  color: #fff;
+  font-size: 16px;
+  height: 60px;
+  resize: none;
+}
+
+.textarea-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 800px;
+  background: #222;
+  border-radius: 18px;
+  padding: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.textarea-wrapper textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
+  resize: none;
+  min-height: 50px;
+  /* 去掉 max-height:300px */
+  /* 去掉 overflow-y:auto */
+  box-sizing: border-box;
+}
+
+.button-wrapper {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px; /* 按钮和文本之间留点空隙 */
+}
+
+#sendButton, #uploadButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+#sendButton {
+  background-color: #ffffff;
+  color: black;
+}
+
+#sendButton:hover:enabled {
+  background-color: #8b3a0e;
+}
+
+#uploadButton {
+  background-color: #111;
+  color: white;
+}
+
+#uploadButton:hover {
+  background-color: #0056b3;
+}
+
+.button-left-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.circleButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #555;
+  background-color: #222;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.pillButton {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  border: 1px solid #555;
+  background-color: #222;
+  color: white;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.circleButton:hover, .pillButton:hover {
+  background-color: #333;
+}
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #EB4F27;
+      border-radius: 50%;
+      width: 15px;
+      height: 15px;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+	  display: inline-block;
+	  transform-origin: center center;
+    }
+
+/* 左侧对齐布局样式 */
+.align-left {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* 新增 markdown 预览面板样式 */
+#right-panel {
+  width: 0;
+  overflow-x: hidden;
+  transition: width 0.3s;
+}
+
+#markdown-preview {
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  background: #1c1c1c;
+  color: white;
+}
+
+#close-preview-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #333;
+  color: white;
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+#close-preview-button:hover {
+  background-color: #555;
+}
+
+#markdown-preview pre code {
+  background-color: #222 !important;
+  color: #f8f8f2 !important; /* 或者你喜欢的亮色字体 */
+}
+
+.file-card {
+  width: 120px;
+  height: 120px;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  padding: 12px 8px;
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.file-card:hover {
+  background-color: #2a2a2a;
+}
+
+.file-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 6px;
+}
+
+.file-name {
+  text-align: center;
+  word-break: break-word;
+}
+
+	@keyframes flashing {
+	  0% { background-color: #222; }
+	  50% { background-color: #333; }
+	  100% { background-color: #222; }
+	}
+
+	.code-summary.flashing {
+	  animation: flashing 1s infinite;
+	}
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #111;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 8px;
+    }
+
+details pre code {
+  background-color: #222 !important;
+  display: block;
+  padding: 10px;
+  border-radius: 8px;
+  color: #fff !important;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+}
+
+@media (max-width: 1200px) {
+  body.preview-mode #left-panel {
+    display: none !important;
+  }
+
+  body.preview-mode #right-panel {
+    width: 100% !important;
+  }
+
+  body.preview-mode #close-preview-button {
+    right: 10px;
+  }
+
+  body.preview-mode #markdown-preview {
+    padding: 20px;
+  }
+}
+
+  </style>
+</head>
+<body>
+
+<div style="display: flex; width: 100%; height: 100%; overflow: hidden;">
+  <div id="left-panel" style="width: 100%; transition: width 0.3s; display: flex; flex-direction: column;">
+    <div class="chat-container" id="chat-container">
+    </div> <!-- close chat-container -->
+    <!-- 始终固定在底部的输入区域 -->
+        <div class="input-container">
+          <div class="input-wrapper">
+            <div class="textarea-wrapper">
+              <textarea id="input" placeholder="Ask me anything..." rows="1"></textarea>
+              <div class="button-wrapper">
+                <div class="button-left-group">
+                  <button id="uploadButton" title="Upload File" onclick="document.getElementById('fileInput').click()">📎</button>
+                  <button class="circleButton" title="More">
+                    ⋯
+                  </button>
+                </div>
+                <button id="sendButton" onclick="sendMessage()">➤</button>
+              </div>
+            </div>
+            <input type="file" id="fileInput" multiple style="display:none;" onchange="handleFiles(this.files)">
+          </div>
+        </div>
+  </div> <!-- close left-panel -->
+
+  <div id="right-panel">
+    <div id="markdown-preview"></div>
+    <button id="close-preview-button" onclick="closePreview()" title="closePreview">×</button>
+  </div>
+</div> <!-- close flex container -->
+
+
+
+
+<script>
+
+let uploadedFileIds = []; // 🔥 保存file_id，不是保存file对象了！
+let isRunning = false;
+let readerController = null;
+
+// 绑定拖拽事件
+const textareaWrapper = document.querySelector('.textarea-wrapper');
+
+textareaWrapper.addEventListener('dragover', function(event) {
+  event.preventDefault(); // 阻止浏览器默认拖拽处理
+  this.style.backgroundColor = '#333'; // 拖拽时加深背景色提示
+});
+
+textareaWrapper.addEventListener('dragleave', function(event) {
+  event.preventDefault();
+  this.style.backgroundColor = '#222'; // 拖出时恢复背景色
+});
+
+textareaWrapper.addEventListener('drop', function(event) {
+  event.preventDefault();
+  this.style.backgroundColor = '#222'; // 恢复背景色
+  const files = event.dataTransfer.files;
+  if (files.length > 0) {
+    handleFiles(files); // 调用已有逻辑
+  }
+});
+
+function removeFile(index, button) {
+  uploadedFileIds.splice(index, 1); // 🔥 删除对应位置的file_id
+  const messageDiv = button.parentElement;
+  messageDiv.remove(); // 🔥 从界面上删除文件显示
+}
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch('/upload', { method: 'POST', body: formData });
+  const data = await response.json();
+
+  if (data.file_id) {
+    uploadedFileIds.push(data.file_id);
+    console.log("Uploaded file_id:", data.file_id);
+  } else {
+    console.error("File upload failed:", data);
+  }
+}
+
+async function handleFiles(files) {
+  for (const file of files) {
+    await uploadFile(file); // 只上传一次
+    // 继续展示文件界面
+    const chatContainer = document.getElementById('chat-container');
+    // （省略展示文件的代码）
+
+    // 根据文件扩展名选择对应图标
+    const fileType = file.name.split('.').pop().toLowerCase();
+    let iconSrc = '/static/file-default.png'; // 默认图标
+    if (fileType === 'zip' || fileType === 'rar' || fileType === '7z') {
+      iconSrc = '/static/file-zip.png';
+    } else if (fileType === 'xlsx' || fileType === 'xls' || fileType === 'csv') {
+      iconSrc = '/static/file-excel.png';
+    } else if (fileType === 'pdf') {
+      iconSrc = '/static/file-pdf.png';
+    } else if (fileType === 'doc' || fileType === 'docx') {
+      iconSrc = '/static/file-word.png';
+    } else if (fileType === 'png' || fileType === 'jpg' || fileType === 'jpeg') {
+      iconSrc = '/static/file-image.png';
+    } else if (fileType === 'html') {
+      iconSrc = '/static/file-html.png';
+	}
+    // 其他可以继续补充判断
+
+const fileMessage = document.createElement('div');
+fileMessage.className = 'message user';
+fileMessage.style.position = 'relative'; // 🔥 让叉叉可以绝对定位
+
+const index = uploadedFileIds.length - 1; // 🔥 当前file_id在数组里的位置
+
+fileMessage.innerHTML = `
+  <button onclick="removeFile(${index}, this)" style="position:absolute; top:2px; right:2px; background:none; border:none; color:white; font-size:14px; cursor:pointer;">❌</button>
+  <div style="display: flex; align-items: center; gap: 8px; padding-top: 8px;">
+    <img src="${iconSrc}" alt="file" style="width:24px;height:24px;">
+    <span>${file.name}</span>
+  </div>
+`;
+
+chatContainer.prepend(fileMessage);
+
+    scrollToBottom();
+  }
+}
+
+const input = document.getElementById('input');
+
+input.addEventListener('input', function() {
+  this.style.height = 'auto'; // 先重置
+  this.style.height = this.scrollHeight + 'px'; // 再根据内容设置高度
+});
+
+document.getElementById('input').addEventListener('keypress', function(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+
+function scrollToBottom() {
+  const chatContainer = document.getElementById('chat-container');
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function sendMessage() {
+  const input = document.getElementById('input');
+  const chatContainer = document.getElementById('chat-container');
+  const sendButton = document.getElementById('sendButton');
+
+if (isRunning) {
+  if (readerController) {
+    readerController.cancel().catch(err => console.error('Error cancelling reader:', err));
+    readerController = null;
+  }
+
+  fetch('/stop', { method: 'POST' })
+	  .then(response => response.json())
+	  .then(data => {
+		console.log('Stop response:', data);
+		if (data.status === 'cancelled') {
+		  sendButton.innerHTML = '➤';
+		  isRunning = false;
+
+		  // 🔥🔥🔥 这里加
+		  const aiContents = document.querySelectorAll('.ai-content');
+		  aiContents.forEach(content => {
+			const flashingSummary = content.querySelector('summary.flashing');
+			if (flashingSummary) {
+			  flashingSummary.classList.remove('flashing');
+			}
+		  });
+		}
+	  })
+	.catch(error => {
+	  console.error('Error stopping:', error);
+	  // ❗异常也不改变按钮
+	});
+
+  return;
+}
+
+  if (!input.value.trim()) return;
+
+  sendButton.disabled = true; // 点击发送，立刻禁用，防止连点
+
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const timestamp = `YOU - ${hours}:${minutes}PM`;
+
+  const userMessage = document.createElement('div');
+  userMessage.className = 'message user';
+  userMessage.innerHTML = `<strong style="font-size: 16px; color: #888;">${timestamp}</strong><br>${input.value}`;
+  chatContainer.prepend(userMessage);
+
+  const aiMessage = document.createElement('div');
+  aiMessage.className = 'message ai';
+  aiMessage.innerHTML = `
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <img src="/static/galaxa ai.png" alt="AI" style="width:24px;height:24px;border-radius:50%;">
+    <strong style="font-size: 16px; color: #888;">${hours}:${minutes}PM</strong>
+    <span id="loader" class="loader" style="margin-left: 4px;"></span>
+  </div>
+  <div class="ai-content">
+    <div id="ai-text"></div>
+  </div>`;
+
+  chatContainer.prepend(aiMessage);
+
+  document.getElementById('loader').style.display = 'inline-block';
+
+  const aiContent = aiMessage.querySelector('#ai-text');
+
+const formData = new FormData();
+formData.append('question', input.value);
+for (const file_id of uploadedFileIds) {
+  formData.append('file_ids', file_id);  // ⚡改为发 file_id
+}
+
+  fetch("/ask", {
+    method: "POST",
+    body: formData
+  }).then(response => {
+    const reader = response.body.getReader();
+	readerController = reader; // 🔥保存当前正在读的流
+
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          aiMessage.querySelector('.loader').style.display = 'none';
+          sendButton.disabled = false;
+          sendButton.innerHTML = '➤'; // 恢复成发送图标
+          isRunning = false;
+          scrollToBottom();
+          return;
+        }
+        const lines = new TextDecoder().decode(value, { stream: true }).split('\n');
+		for (const line of lines) {
+		  if (!line.trim()) continue;
+		  try {
+			const event = JSON.parse(line.trim());
+
+            if (!aiContent.dataset.mode) {
+              aiContent.dataset.mode = 'none';
+              aiContent.accumulatedText = '';
+            }
+
+            if (event.type === 'text') {
+              if (aiContent.dataset.mode !== 'text') {
+                aiContent.dataset.mode = 'text';
+              }
+              if (!aiContent.currentBlock) {
+                const textBlock = document.createElement('div');
+                textBlock.className = 'text-block';
+                aiContent.appendChild(textBlock);
+                aiContent.currentBlock = textBlock;
+              }
+              if (!aiContent.accumulatedText) {
+                aiContent.accumulatedText = '';
+              }
+              aiContent.accumulatedText += event.content;
+              aiContent.currentBlock.innerHTML = marked.parse(aiContent.accumulatedText);
+            }
+            else if (event.type === 'code_start') {
+			  // 标记我们开始准备一个 code block，但不立即添加到 DOM
+			  aiContent.pendingCodeBlock = {
+				summary: null,
+				code: null,
+				container: null,
+				preview: null,
+				hasContent: false
+			  };
+
+			  const codeBlock = document.createElement('details');
+			  codeBlock.style = 'background-color: #222; border-radius: 8px; margin: 8px 0; padding: 5px; overflow: hidden;';
+			  codeBlock.classList.add('code-block');
+
+			  const summary = document.createElement('summary');
+			  summary.textContent = 'Executing Command……';
+			  summary.classList.add('code-summary', 'flashing');
+			  summary.style = 'cursor:pointer;background-color:#222;padding:8px 12px;border-radius:8px;color:#ccc';
+
+			  const pre = document.createElement('pre');
+			  pre.style = 'background-color:#222;padding:10px;border-radius:8px;overflow-x:auto;margin:0';
+
+			  const code = document.createElement('code');
+			  code.className = 'language-python';
+			  pre.appendChild(code);
+
+			  codeBlock.appendChild(summary);
+			  codeBlock.appendChild(pre);
+
+			  // Save temporarily
+			  aiContent.pendingCodeBlock.summary = summary;
+			  aiContent.pendingCodeBlock.code = code;
+			  aiContent.pendingCodeBlock.container = codeBlock;
+
+			  // Also prepare right preview block
+			  const previewPre = document.createElement('pre');
+			  previewPre.style = 'background-color:#222;padding:10px;border-radius:8px;overflow-x:auto;margin:0';
+			  const previewCode = document.createElement('code');
+			  previewCode.className = 'language-python';
+			  previewCode.id = 'live-code-preview';
+			  previewPre.appendChild(previewCode);
+
+			  aiContent.pendingCodeBlock.preview = previewPre;
+			}
+
+            else if (event.type === 'code_content') {
+			  if (aiContent.pendingCodeBlock) {
+				if (!aiContent.pendingCodeBlock.hasContent) {
+				  aiContent.appendChild(aiContent.pendingCodeBlock.container);
+				  aiContent.currentBlock = aiContent.pendingCodeBlock.code;
+				  aiContent.currentSummary = aiContent.pendingCodeBlock.summary;
+				  aiContent.dataset.mode = 'code';
+
+				  // Show right panel
+				  const rightPanel = document.getElementById('right-panel');
+				  const leftPanel = document.getElementById('left-panel');
+				  const markdownPreview = document.getElementById('markdown-preview');
+
+				  if (window.innerWidth < 1200) {
+					  document.body.classList.add('preview-mode');
+					} else {
+					  rightPanel.style.width = '50%';
+					  leftPanel.style.width = '50%';
+					  leftPanel.classList.add('align-left');
+					}
+
+				  markdownPreview.innerHTML = `<h2>Code Preview</h2>`;
+				  markdownPreview.appendChild(aiContent.pendingCodeBlock.preview);
+				}
+
+				aiContent.pendingCodeBlock.hasContent = true;
+				aiContent.pendingCodeBlock.code.textContent += event.content;
+
+				const previewCode = document.getElementById('live-code-preview');
+				if (previewCode) {
+				  previewCode.textContent += event.content;
+				}
+			  }
+			}
+
+            else if (event.type === 'code_end') {
+			  if (aiContent.pendingCodeBlock?.hasContent) {
+				if (aiContent.currentSummary) {
+				  aiContent.currentSummary.classList.remove('flashing');
+				  aiContent.currentSummary = null;
+				}
+				if (aiContent.currentBlock) {
+				  hljs.highlightElement(aiContent.currentBlock);
+				  aiContent.currentBlock = null;
+				}
+				const previewCode = document.getElementById('live-code-preview');
+				if (previewCode) {
+				  hljs.highlightElement(previewCode);
+				}
+			  }
+			  // 清理
+			  aiContent.pendingCodeBlock = null;
+			  aiContent.dataset.mode = 'text';
+			}
+
+            else if (event.type === 'preview') {
+              if (event.file_name) {
+                previewMarkdown(event.file_name);
+                const chatContainer = document.getElementById('chat-container');
+
+                const fileType = event.file_name.split('.').pop().toLowerCase();
+                let iconSrc = '/static/file-default.png';
+                if (fileType === 'md' || fileType === 'markdown') {
+                  iconSrc = '/static/file-markdown.png';
+                } else if (fileType === 'pdf') {
+                  iconSrc = '/static/file-pdf.png';
+                } else if (fileType === 'csv' || fileType === 'xls' || fileType === 'xlsx') {
+                  iconSrc = '/static/file-excel.png';
+                } else if (fileType === 'doc' || fileType === 'docx') {
+                  iconSrc = '/static/file-word.png';
+				} else if (fileType === 'png' || fileType === 'jpg' || fileType === 'jpeg') {
+				  iconSrc = '/static/file-image.png';
+                } else if (fileType === 'html') {
+				  iconSrc = '/static/file-html.png';
+				}
+                // 你可以继续扩展更多类型
+
+                const fileCard = document.createElement('div');
+                fileCard.className = 'file-card';
+                fileCard.onclick = () => previewMarkdown(event.file_name);
+
+                fileCard.innerHTML = `
+                  <img src="${iconSrc}" class="file-icon" alt="file">
+                  <div class="file-name">${event.file_name}</div>
+                `;
+
+                chatContainer.prepend(fileCard);
+              }
+            }
+			
+			else if (event.type === 'web_preview') {
+			  const url = event.url;
+			  const rightPanel = document.getElementById('right-panel');
+			  const leftPanel = document.getElementById('left-panel');
+			  const markdownPreview = document.getElementById('markdown-preview');
+
+			  if (window.innerWidth < 1200) {
+				document.body.classList.add('preview-mode');
+			  } else {
+				rightPanel.style.width = '50%';
+				leftPanel.style.width = '50%';
+				leftPanel.classList.add('align-left');
+			  }
+
+			  markdownPreview.innerHTML = `
+				<h2>网页预览</h2>
+				<iframe src="${url}" style="width:100%; height:100%; border:none; background:white;"></iframe>
+			  `;
+			}
+
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
+        }
+        scrollToBottom();
+        read();
+      }).catch(error => {
+        console.error('Error:', error);
+        aiMessage.querySelector('.loader').style.display = 'none';
+        sendButton.disabled = false;
+        sendButton.innerHTML = '➤';
+        isRunning = false;
+      });
+    }
+    read();
+  });
+
+  sendButton.innerHTML = '◼'; // 开始后变成停止
+  sendButton.disabled = false; // ✅ 解除禁用
+  isRunning = true;
+  input.value = '';
+  input.style.height = 'auto';
+}
+
+function closePreview() {
+  const leftPanel = document.getElementById('left-panel');
+  const rightPanel = document.getElementById('right-panel');
+  const markdownPreview = document.getElementById('markdown-preview');
+  const chatContainer = document.getElementById('chat-container');
+  const inputContainer = document.querySelector('.input-container');
+
+  // 恢复宽度
+  leftPanel.style.width = '100%';
+  rightPanel.style.width = '0';
+  markdownPreview.innerHTML = '';
+  leftPanel.classList.remove('align-left');
+  document.body.classList.remove('preview-mode'); // ✅ 移除模式
+
+  // 恢复居中
+  chatContainer.style.marginLeft = 'auto';
+  chatContainer.style.marginRight = 'auto';
+  inputContainer.style.justifyContent = 'center';
+  const inputWrapper = document.querySelector('.input-wrapper');
+  inputWrapper.style.marginLeft = '';
+  inputWrapper.style.marginRight = '';
+}
+
+function previewMarkdown(fileName) {
+  const isHTML = fileName.toLowerCase().endsWith('.html');
+  const isImage = /\.(png|jpg|jpeg|gif)$/i.test(fileName);
+
+  const leftPanel = document.getElementById('left-panel');
+  const rightPanel = document.getElementById('right-panel');
+  const chatContainer = document.getElementById('chat-container');
+
+  // ✅ 视口小于 1200px 时进入 preview-mode
+  if (window.innerWidth < 1200) {
+    document.body.classList.add('preview-mode');
+  } else {
+    leftPanel.style.width = '50%';
+    rightPanel.style.width = '50%';
+    leftPanel.classList.add('align-left');
+  }
+
+  chatContainer.style.margin = '0';
+
+  const previewArea = document.getElementById('markdown-preview');
+  const inputContainer = document.querySelector('.input-container');
+  const inputWrapper = document.querySelector('.input-wrapper');
+  inputContainer.style.justifyContent = 'flex-start';
+  inputWrapper.style.marginLeft = 'auto';
+  inputWrapper.style.marginRight = 'auto';
+
+  if (isHTML) {
+    previewArea.innerHTML = `
+      <h2>${fileName}</h2>
+      <iframe src="/download/${encodeURIComponent(fileName)}"
+              style="width:100%; height:600px; border:none; background:white;"></iframe>
+    `;
+  } else if (isImage) {
+    // ✅ 图片直接 img
+    previewArea.innerHTML = `
+      <h2>${fileName}</h2>
+      <img src="/download/${encodeURIComponent(fileName)}" style="max-width:100%;">
+    `;
+  } else {
+    // ✅ 其他 markdown/text
+    fetch(`/download/${encodeURIComponent(fileName)}`)
+      .then(response => response.text())
+      .then(markdownText => {
+        previewArea.innerHTML = `<h2>${fileName}</h2>` + marked.parse(markdownText);
+      });
+  }
+}
+
+</script>
+
+</body>
+</html>
