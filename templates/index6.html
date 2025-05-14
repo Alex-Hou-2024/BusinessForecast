@@ -444,12 +444,14 @@ async function handleFiles(files) {
       iconSrc = '/static/file-excel.png';
     } else if (fileType === 'pdf') {
       iconSrc = '/static/file-pdf.png';
-    } else if (fileType === 'doc' || fileType === 'docx') {
+    } else if (fileType === 'txt' || fileType === 'doc' || fileType === 'docx') {
       iconSrc = '/static/file-word.png';
     } else if (fileType === 'png' || fileType === 'jpg' || fileType === 'jpeg') {
       iconSrc = '/static/file-image.png';
     } else if (fileType === 'html') {
       iconSrc = '/static/file-html.png';
+	} else if (fileType === 'py') {
+      iconSrc = '/static/file-python.png';
 	}
     // 其他可以继续补充判断
 
@@ -609,9 +611,13 @@ for (const file_id of uploadedFileIds) {
                 aiContent.accumulatedText = '';
               }
               aiContent.accumulatedText += event.content;
+				// ✅ 这里加
+				console.log('🔍 当前累计文本:', aiContent.accumulatedText);
               aiContent.currentBlock.innerHTML = marked.parse(aiContent.accumulatedText);
             }
             else if (event.type === 'code_start') {
+				// 清空 accumulatedText
+				aiContent.accumulatedText = '';
 			  // 标记我们开始准备一个 code block，但不立即添加到 DOM
 			  aiContent.pendingCodeBlock = {
 				summary: null,
@@ -724,12 +730,14 @@ for (const file_id of uploadedFileIds) {
                   iconSrc = '/static/file-pdf.png';
                 } else if (fileType === 'csv' || fileType === 'xls' || fileType === 'xlsx') {
                   iconSrc = '/static/file-excel.png';
-                } else if (fileType === 'doc' || fileType === 'docx') {
+                } else if (fileType === 'txt' || fileType === 'doc' || fileType === 'docx') {
                   iconSrc = '/static/file-word.png';
 				} else if (fileType === 'png' || fileType === 'jpg' || fileType === 'jpeg') {
 				  iconSrc = '/static/file-image.png';
                 } else if (fileType === 'html') {
 				  iconSrc = '/static/file-html.png';
+				} else if (fileType === 'py') {
+				  iconSrc = '/static/file-python.png';
 				}
                 // 你可以继续扩展更多类型
 
